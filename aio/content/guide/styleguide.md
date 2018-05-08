@@ -3773,8 +3773,7 @@ A typical *lazy loaded folder* contains a *routing component*, its child compone
 <div class="s-rule do">
 
 
-
-**Do** give components an _element_ selector, as opposed to _attribute_ or _class_ selectors.
+**Consider** giving components an _element_ selector, as opposed to _attribute_ or _class_ selectors.
 
 
 </div>
@@ -3803,7 +3802,11 @@ Developers place components on the page as they would native HTML elements and w
 
 </div>
 
+<div class="l-sub-section">
 
+There are a few cases where you give a component an attribute, such as when you want to augment a built-in element. For example, [Material Design](https://material.angular.io/components/button/overview) uses this technique with `<button mat-button>`. However, you wouldn't use this technique on a custom element.
+
+</div>
 
 <code-example path="styleguide/src/05-03/app/heroes/shared/hero-button/hero-button.component.avoid.ts" region="example" title="app/heroes/hero-button/hero-button.component.ts">
 
@@ -3816,8 +3819,6 @@ Developers place components on the page as they would native HTML elements and w
 <code-example path="styleguide/src/05-03/app/app.component.avoid.html" title="app/app.component.html">
 
 </code-example>
-
-
 
 
 
@@ -4662,7 +4663,7 @@ Compare with the less preferred `host` metadata alternative.
 
 
 
-**Do** provide services to the Angular injector at the top-most component where they will be shared.
+**Do** provide a service with the app root injector in the `@Injectable` decorator of the service.
 
 
 </div>
@@ -4684,8 +4685,8 @@ Compare with the less preferred `host` metadata alternative.
 
 
 
-**Why?** When providing the service to a top level component,
-that instance is shared and available to all child components of that top level component.
+**Why?** When you provide the service to a root injector, that instance of the service is shared and available in every class that needs the service. This is ideal when a service is sharing methods or state.
+
 
 
 </div>
@@ -4696,8 +4697,7 @@ that instance is shared and available to all child components of that top level 
 
 
 
-**Why?** This is ideal when a service is sharing methods or state.
-
+**Why?** When you register a service in the `@Injectable` decorator of the service, optimization tools such as those used by the CLI's production builds can perform tree shaking and remove services that aren't used by your app.
 
 </div>
 
@@ -4712,19 +4712,8 @@ that instance is shared and available to all child components of that top level 
 
 </div>
 
+<code-example path="dependency-injection/src/app/tree-shaking/service.ts" title="src/app/treeshaking/service.ts" linenums="false"> </code-example> 
 
-
-<code-tabs>
-
-  <code-pane title="app/app.component.ts" path="styleguide/src/07-03/app/app.component.ts">
-
-  </code-pane>
-
-  <code-pane title="app/heroes/hero-list/hero-list.component.ts" path="styleguide/src/07-03/app/heroes/hero-list/hero-list.component.ts">
-
-  </code-pane>
-
-</code-tabs>
 
 
 
