@@ -50,7 +50,9 @@ export interface NgModuleDefinitionFactory extends DefinitionFactory<NgModuleDef
 
 export interface ViewDefinition extends Definition<ViewDefinitionFactory> {
   flags: ViewFlags;
+  // update child directives' property bindings
   updateDirectives: ViewUpdateFn;
+  // update bingdings in the template
   updateRenderer: ViewUpdateFn;
   handleEvent: ViewHandleEventFn;
   /**
@@ -113,10 +115,12 @@ export interface NodeDef {
   // Differ from nodeIndex when nodes are added or removed at runtime (ie after compilation)
   checkIndex: number;
   parent: NodeDef|null;
+  // normal element(nor ng-template or ng-container)
   renderParent: NodeDef|null;
   /** this is checked against NgContentDef.index to find matched nodes */
   ngContentIndex: number|null;
   /** number of transitive children */
+  // only anchorDef, elementDef, directiveDef can produce node with childCount > 0
   childCount: number;
   /** aggregated NodeFlags for all transitive children (does not include self) **/
   childFlags: NodeFlags;
@@ -124,9 +128,12 @@ export interface NodeDef {
   directChildFlags: NodeFlags;
 
   bindingIndex: number;
+  // something in this node should be updated timely
   bindings: BindingDef[];
+  // aggregate all the BindingFlags in bindings together
   bindingFlags: BindingFlags;
   outputIndex: number;
+  // this node can emit some event
   outputs: OutputDef[];
   /**
    * references that the user placed on the element
@@ -176,6 +183,7 @@ export const enum NodeFlags {
   LazyProvider = 1 << 12,
   PrivateProvider = 1 << 13,
   TypeDirective = 1 << 14,
+  // set on the directive node
   Component = 1 << 15,
   CatProviderNoDirective =
       TypeValueProvider | TypeClassProvider | TypeFactoryProvider | TypeUseExistingProvider,
@@ -188,9 +196,12 @@ export const enum NodeFlags {
   AfterContentChecked = 1 << 21,
   AfterViewInit = 1 << 22,
   AfterViewChecked = 1 << 23,
+  // if there is query for the ViewContainerRef, EmbeddedViews will be set
   EmbeddedViews = 1 << 24,
+  // if this is the host element of component, ComponentView will be set
   ComponentView = 1 << 25,
   TypeContentQuery = 1 << 26,
+  // for example, component use @ViewChild to query its view
   TypeViewQuery = 1 << 27,
   StaticQuery = 1 << 28,
   DynamicQuery = 1 << 29,
@@ -247,6 +258,7 @@ export interface ElementDef {
   /** ns, name, value */
   attrs: [string, string, string][]|null;
   template: ViewDefinition|null;
+  // the directive node
   componentProvider: NodeDef|null;
   componentRendererType: RendererType2|null;
   // closure to allow recursive components
@@ -261,6 +273,7 @@ export interface ElementDef {
    * that are located on this element.
    */
   allProviders: {[tokenKey: string]: NodeDef}|null;
+  // handle directive output
   handleEvent: ElementHandleEventFn|null;
 }
 
@@ -349,9 +362,17 @@ export interface ViewData {
   root: RootData;
   renderer: Renderer2;
   // index of component provider / anchor.
+  // for EmbeddedView, view.parentNodeDef is the anchor element(ng-template)
+  // that define the template, which is in the parent view
+  // for ComponentView, view.parentNodeDef is the directive node(created by directiveDef)
   parentNodeDef: NodeDef|null;
+  // a view with a parent is either a ComponentView or a EmbeddedView
+  // for EmbeddedView, parent is the view that defined the template
   parent: ViewData|null;
+  // for EmbeddedView, viewContainerParent is the view that contain the viewContainer
   viewContainerParent: ViewData|null;
+  // Embedded View's 'component' and 'context' is different, see createEmbeddedView and angular\packages\core\test\view\embedded_view_spec.ts
+  // other view's 'component' and 'context' is the same, see initView in view.ts
   component: any;
   context: any;
   // Attention: Never loop over this, as this will
@@ -361,7 +382,9 @@ export interface ViewData {
   // the NodeType.
   nodes: {[key: number]: NodeData};
   state: ViewState;
+  // Array size: def.bindingCount
   oldValues: any[];
+  // Array size: def.outputCount
   disposables: DisposableFn[]|null;
   initIndex: number;
 }
@@ -462,9 +485,13 @@ export function asTextData(view: ViewData, index: number): TextData {
  * Attention: Adding fields to this is performance sensitive!
  */
 export interface ElementData {
+  // if this element is <ng-container>, renderElement is a comment HTML element
   renderElement: any;
+  // if is element a component host, componentView is set to the component view
   componentView: ViewData;
+  // if this element is queried for viewContainer, viewContainer will be set
   viewContainer: ViewContainerData|null;
+  // if this element is <ng-template>, template will be set
   template: TemplateData;
 }
 
@@ -482,6 +509,9 @@ export interface TemplateData extends TemplateRef<any> {
   // By default, this is undefined.
   // Note: we are using the prefix _ as TemplateData is a TemplateRef and therefore directly
   // exposed to the user.
+  // the view instance that is created from the template
+  // Note: if the view instance is inserted into the embeddedViews of the same element,
+  // it will not be included in _projectedViews
   _projectedViews: ViewData[];
 }
 
@@ -567,6 +597,9 @@ export interface ProviderOverride {
 
 export interface Services {
   setCurrentNode(view: ViewData, nodeIndex: number): void;
+  /**
+   * create view for entry component
+   */
   createRootView(
       injector: Injector, projectableNodes: any[][], rootSelectorOrNode: string|any,
       def: ViewDefinition, ngModule: NgModuleRef<any>, context?: any): ViewData;

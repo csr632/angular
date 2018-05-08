@@ -12,6 +12,7 @@ import {SecurityContext} from '../security';
 import {BindingDef, BindingFlags, ElementData, ElementHandleEventFn, NodeDef, NodeFlags, OutputDef, OutputType, QueryValueType, ViewData, ViewDefinitionFactory, asElementData} from './types';
 import {NOOP, calcBindingFlags, checkAndUpdateBinding, dispatchEvent, elementEventFullName, getParentRenderElement, resolveDefinition, resolveRendererType2, splitMatchedQueriesDsl, splitNamespace} from './util';
 
+// used to define ng-template element and store the template(as ViewDefinition)
 export function anchorDef(
     flags: NodeFlags, matchedQueriesDsl: null | [string | number, QueryValueType][],
     ngContentIndex: null | number, childCount: number, handleEvent?: null | ElementHandleEventFn,
@@ -177,8 +178,10 @@ export function createElement(view: ViewData, renderHost: any, def: NodeDef): El
 export function listenToElementOutputs(view: ViewData, compView: ViewData, def: NodeDef, el: any) {
   for (let i = 0; i < def.outputs.length; i++) {
     const output = def.outputs[i];
+    // construct the callback
     const handleEventClosure = renderEventHandlerClosure(
         view, def.nodeIndex, elementEventFullName(output.target, output.eventName));
+    // the output.target of event binding is null
     let listenTarget: 'window'|'document'|'body'|'component'|null = output.target;
     let listenerView = view;
     if (output.target === 'component') {

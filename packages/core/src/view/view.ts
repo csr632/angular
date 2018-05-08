@@ -38,15 +38,21 @@ export function viewDef(
     const node = nodes[i];
     node.nodeIndex = i;
     node.parent = currentParent;
+    // make it convenient to access binding/output of this node
+    // (all binding/output are stored in ViewData's array)
     node.bindingIndex = viewBindingCount;
     node.outputIndex = viewDisposableCount;
+    // normal element(nor ng-template or ng-container)
     node.renderParent = currentRenderParent;
 
     viewNodeFlags |= node.flags;
     viewMatchedQueries |= node.matchedQueryIds;
 
     if (node.element) {
+      // element or anchor
       const elDef = node.element;
+      // child element will inherit publicProviders of parent
+      // (element's parent must be element)
       elDef.publicProviders =
           currentParent ? currentParent.element !.publicProviders : Object.create(null);
       elDef.allProviders = elDef.publicProviders;
@@ -55,6 +61,7 @@ export function viewDef(
       currentElementHasPrivateProviders = false;
 
       if (node.element.template) {
+        // anchor
         viewMatchedQueries |= node.element.template.nodeMatchedQueries;
       }
     }
@@ -65,13 +72,17 @@ export function viewDef(
     viewDisposableCount += node.outputs.length;
 
     if (!currentRenderParent && (node.flags & NodeFlags.CatRenderNode)) {
+      // this is root node
+      // the view can have multiple root nodes
       lastRenderRootNode = node;
     }
 
     if (node.flags & NodeFlags.CatProvider) {
+      // provider's parent must be element / anchor
       if (!currentElementHasPublicProviders) {
         currentElementHasPublicProviders = true;
         // Use prototypical inheritance to not get O(n^2) complexity...
+        // element publicProviders prototype chain form a tree
         currentParent !.element !.publicProviders =
             Object.create(currentParent !.element !.publicProviders);
         currentParent !.element !.allProviders = currentParent !.element !.publicProviders;
@@ -84,12 +95,14 @@ export function viewDef(
         if (!currentElementHasPrivateProviders) {
           currentElementHasPrivateProviders = true;
           // Use prototypical inheritance to not get O(n^2) complexity...
+          // element allProviders will never be prototype of other Object
           currentParent !.element !.allProviders =
               Object.create(currentParent !.element !.publicProviders);
         }
         currentParent !.element !.allProviders ![tokenKey(node.provider !.token)] = node;
       }
       if (isComponent) {
+        // link the host element node to its direcitive node
         currentParent !.element !.componentProvider = node;
       }
     }
@@ -102,6 +115,7 @@ export function viewDef(
         currentParent.childMatchedQueries |= node.element.template.nodeMatchedQueries;
       }
     } else {
+      // root provider will also set viewRootNodeFlags, don't know why
       viewRootNodeFlags |= node.flags;
     }
 
@@ -109,6 +123,7 @@ export function viewDef(
       currentParent = node;
 
       if (!isNgContainer(node)) {
+        // normal element(nor ng-template or ng-container)
         currentRenderParent = node;
       }
     } else {
@@ -117,6 +132,7 @@ export function viewDef(
       // The loop is required because an element could be the last transitive children of several
       // elements. We loop to either the root or the highest opened element (= with remaining
       // children)
+      // when loop to the root node, currentParent become null again
       while (currentParent && i === currentParent.nodeIndex + currentParent.childCount) {
         const newParent: NodeDef|null = currentParent.parent;
         if (newParent) {
@@ -152,6 +168,7 @@ export function viewDef(
 }
 
 function isNgContainer(node: NodeDef): boolean {
+  // anchor element(ng-template) or ng-container
   return (node.flags & NodeFlags.TypeElement) !== 0 && node.element !.name === null;
 }
 
@@ -218,6 +235,7 @@ export function createComponentView(
   if (!rendererType) {
     compRenderer = parentView.root.renderer;
   } else {
+    // get new renderer if the RendererType2 are different
     compRenderer = parentView.root.rendererFactory.createRenderer(hostElement, rendererType);
   }
   return createView(
@@ -247,10 +265,13 @@ function initView(view: ViewData, component: any, context: any) {
   view.context = context;
 }
 
+//
 function createViewNodes(view: ViewData) {
   let renderHost: any;
   if (isComponentView(view)) {
+    // the directive node(created by directiveDef)
     const hostDef = view.parentNodeDef;
+    // the host element of component in the parent view
     renderHost = asElementData(view.parent !, hostDef !.parent !.nodeIndex).renderElement;
   }
   const def = view.def;
@@ -264,6 +285,7 @@ function createViewNodes(view: ViewData) {
         const el = createElement(view, renderHost, nodeDef) as any;
         let componentView: ViewData = undefined !;
         if (nodeDef.flags & NodeFlags.ComponentView) {
+          // this is host element of component
           const compViewDef = resolveDefinition(nodeDef.element !.componentView !);
           componentView = Services.createComponentView(view, nodeDef, compViewDef, el);
         }
@@ -347,6 +369,7 @@ export function checkNoChangesView(view: ViewData) {
   view.state &= ~(ViewState.CheckProjectedViews | ViewState.CheckProjectedView);
 }
 
+//
 export function checkAndUpdateView(view: ViewData) {
   if (view.state & ViewState.BeforeFirstCheck) {
     view.state &= ~ViewState.BeforeFirstCheck;
@@ -588,6 +611,7 @@ function execEmbeddedViewsAction(view: ViewData, action: ViewAction) {
   }
 }
 
+//
 function callViewAction(view: ViewData, action: ViewAction) {
   const viewState = view.state;
   switch (action) {

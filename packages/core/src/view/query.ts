@@ -12,6 +12,9 @@ import {QueryList} from '../linker/query_list';
 import {NodeDef, NodeFlags, QueryBindingDef, QueryBindingType, QueryDef, QueryValueType, ViewData, asElementData, asProviderData, asQueryList} from './types';
 import {declaredViewContainer, filterQueryId, isEmbeddedView} from './util';
 
+// Content Query nodes need to be children of directives
+// View Query nodes have to be top level nodes
+
 export function queryDef(
     flags: NodeFlags, id: number, bindings: {[propName: string]: QueryBindingType}): NodeDef {
   let bindingDefs: QueryBindingDef[] = [];
@@ -89,6 +92,9 @@ export function dirtyParentQueries(view: ViewData) {
   }
 }
 
+/**
+ * @description nodeDef must be a Content Query node(created by queryDef)
+ */
 export function checkAndUpdateQuery(view: ViewData, nodeDef: NodeDef) {
   const queryList = asQueryList(view, nodeDef.nodeIndex);
   if (!queryList.dirty) {
@@ -97,13 +103,17 @@ export function checkAndUpdateQuery(view: ViewData, nodeDef: NodeDef) {
   let directiveInstance: any;
   let newValues: any[] = undefined !;
   if (nodeDef.flags & NodeFlags.TypeContentQuery) {
+    // @ContentChild or @ContentChildren
     const elementDef = nodeDef.parent !.parent !;
     newValues = calcQueryValues(
         view, elementDef.nodeIndex, elementDef.nodeIndex + elementDef.childCount, nodeDef.query !,
         []);
+    // Content Query nodes must be children of directives (directive instance is stored in ProviderData)
     directiveInstance = asProviderData(view, nodeDef.parent !.nodeIndex).instance;
   } else if (nodeDef.flags & NodeFlags.TypeViewQuery) {
+    // @ViewChild or @ViewChildren
     newValues = calcQueryValues(view, 0, view.def.nodes.length - 1, nodeDef.query !, []);
+    // View Query nodes must be top level nodes
     directiveInstance = view.component;
   }
   queryList.reset(newValues);
@@ -121,6 +131,7 @@ export function checkAndUpdateQuery(view: ViewData, nodeDef: NodeDef) {
         notify = true;
         break;
     }
+    // update property in directiveInstance(decorated by @ViewChild or @ContentChild or @ViewChildren or @ContentChildren)
     directiveInstance[binding.propName] = boundValue;
   }
   if (notify) {
@@ -128,15 +139,19 @@ export function checkAndUpdateQuery(view: ViewData, nodeDef: NodeDef) {
   }
 }
 
+
 function calcQueryValues(
     view: ViewData, startIndex: number, endIndex: number, queryDef: QueryDef,
     values: any[]): any[] {
   for (let i = startIndex; i <= endIndex; i++) {
     const nodeDef = view.def.nodes[i];
+    // check node itself
     const valueType = nodeDef.matchedQueries[queryDef.id];
     if (valueType != null) {
       values.push(getQueryValue(view, nodeDef, valueType));
     }
+    // if this node is an Anchor node(ng-template) with a template that match the bloom filter of queryDef,
+    // search the node's childNodes, embeddedViews, template instance(_projectedViews) for a match
     if (nodeDef.flags & NodeFlags.TypeElement && nodeDef.element !.template &&
         (nodeDef.element !.template !.nodeMatchedQueries & queryDef.filterId) ===
             queryDef.filterId) {
@@ -148,11 +163,16 @@ function calcQueryValues(
         i += nodeDef.childCount;
       }
       if (nodeDef.flags & NodeFlags.EmbeddedViews) {
+        // if this Anchor node(ng-template) is also a viewContainer(is queried for viewContainer)
+        // check the embeddedViews
+        // see 'should query providers in embedded views' in query_spec.ts
         const embeddedViews = elementData.viewContainer !._embeddedViews;
         for (let k = 0; k < embeddedViews.length; k++) {
           const embeddedView = embeddedViews[k];
           const dvc = declaredViewContainer(embeddedView);
           if (dvc && dvc === elementData) {
+            // if the embeddedView is declear on this exact node, search it.
+            // because this kind of view instance do not appear on template._projectedViews
             calcQueryValues(embeddedView, 0, embeddedView.def.nodes.length - 1, queryDef, values);
           }
         }

@@ -26,6 +26,7 @@ import {compViewDef, compViewDefFactory, createAndGetRootNodes, createEmbeddedVi
     function contentQueryProviders(checkIndex: number) {
       return [
         directiveDef(checkIndex, NodeFlags.None, null, 1, QueryService, []),
+        // if queryDef is NodeFlags.TypeContentQuery, set the binding on the parent node(directive node)
         queryDef(
             NodeFlags.TypeContentQuery | NodeFlags.DynamicQuery, someQueryId,
             {'a': QueryBindingType.All})
@@ -37,14 +38,19 @@ import {compViewDef, compViewDefFactory, createAndGetRootNodes, createEmbeddedVi
     // nodes first checkIndex should be 1 (to account for the `queryDef`
     function compViewQueryProviders(checkIndex: number, extraChildCount: number, nodes: NodeDef[]) {
       return [
+        // host element
         elementDef(
             checkIndex, NodeFlags.None, null, null, 1 + extraChildCount, 'div', null, null, null,
             null, () => compViewDef([
+                    // if queryDef is NodeFlags.TypeViewQuery,
+                    // component's queryDef is in compViewDef, because it query something in the component view
+                    // set the binding on the directive node(child of the host element)
                     queryDef(
                         NodeFlags.TypeViewQuery | NodeFlags.DynamicQuery, someQueryId,
                         {'a': QueryBindingType.All}),
                     ...nodes
                   ])),
+        // directive node (child of the host element)
         directiveDef(
             checkIndex + 1, NodeFlags.Component, null !, 0, QueryService, [], null !, null !, ),
       ];
@@ -134,6 +140,7 @@ import {compViewDef, compViewDefFactory, createAndGetRootNodes, createEmbeddedVi
         const {view} = createAndGetRootNodes(compViewDef([
           elementDef(0, NodeFlags.None, null, null, 5, 'div'),
           ...contentQueryProviders(1),
+          // anchor is a child of the host element of EmbeddedViews
           anchorDef(NodeFlags.EmbeddedViews, null, null, 2, null, compViewDefFactory([
                       elementDef(0, NodeFlags.None, null, null, 1, 'div'),
                       aServiceProvider(1),

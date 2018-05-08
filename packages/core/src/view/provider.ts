@@ -25,12 +25,17 @@ const TemplateRefTokenKey = tokenKey(TemplateRef);
 const ChangeDetectorRefTokenKey = tokenKey(ChangeDetectorRef);
 const InjectorRefTokenKey = tokenKey(Injector);
 
+// StaticProvider/Directive nodes need to be children of elements or anchors
+
 export function directiveDef(
     checkIndex: number, flags: NodeFlags,
     matchedQueries: null | [string | number, QueryValueType][], childCount: number, ctor: any,
     deps: ([DepFlags, any] | any)[], props?: null | {[name: string]: [number, string]},
     outputs?: null | {[name: string]: string}): NodeDef {
   const bindings: BindingDef[] = [];
+  // props declear what property can be bind
+  // for example, `@Input('account-id')id` make props: `{ id: [0, "id"] }`
+  // inputs in directive Metadata has same effect as @Input
   if (props) {
     for (let prop in props) {
       const [bindingIndex, nonMinifiedName] = props[prop];
@@ -43,6 +48,9 @@ export function directiveDef(
       };
     }
   }
+  // outputs declear what event this directive can emit(event will trigger on the host element)
+  // for example, `@Output('opt-binding')` make outputs `{ opt: "opt-binding" }`
+  // outputs in directive Metadata has same effect as @Output
   const outputDefs: OutputDef[] = [];
   if (outputs) {
     for (let propName in outputs) {

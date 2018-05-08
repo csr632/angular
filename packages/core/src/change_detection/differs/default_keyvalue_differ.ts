@@ -101,6 +101,9 @@ export class DefaultKeyValueDiffer<K, V> implements KeyValueDiffer<K, V>, KeyVal
         insertBefore = insertBefore._next;
       } else {
         const record = this._getOrCreateRecordForKey(key, value);
+        // if insertBefore===null
+        // either this is an empty link list(then _appendAfter === null)
+        // or insertBefore just reach the end of list
         insertBefore = this._insertBeforeOrAppend(insertBefore, record);
       }
     });
@@ -146,6 +149,9 @@ export class DefaultKeyValueDiffer<K, V> implements KeyValueDiffer<K, V>, KeyVal
       before: KeyValueChangeRecord_<K, V>|null,
       record: KeyValueChangeRecord_<K, V>): KeyValueChangeRecord_<K, V>|null {
     if (before) {
+      // before point to a record with a unmatch key
+      // insert `record` before `before`
+      // so that `before` will try to match the next key in the checked object
       const prev = before._prev;
       record._next = before;
       record._prev = prev;
@@ -165,6 +171,8 @@ export class DefaultKeyValueDiffer<K, V> implements KeyValueDiffer<K, V>, KeyVal
       this._appendAfter._next = record;
       record._prev = this._appendAfter;
     } else {
+      // before === null && this._appendAfter === null
+      // this list is empty
       this._mapHead = record;
     }
 
@@ -178,6 +186,7 @@ export class DefaultKeyValueDiffer<K, V> implements KeyValueDiffer<K, V>, KeyVal
       this._maybeAddToChanges(record, value);
       const prev = record._prev;
       const next = record._next;
+      // remove record from link list
       if (prev) {
         prev._next = next;
       }
