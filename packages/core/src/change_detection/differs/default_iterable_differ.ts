@@ -71,16 +71,19 @@ export class DefaultIterableDiffer<V> implements IterableDiffer<V>, IterableChan
                       getPreviousIndex(nextRemove, addRemoveOffset, moveOffsets) ?
           nextIt ! :
           nextRemove;
+      // the expected position after operate operations known **so far**
       const adjPreviousIndex = getPreviousIndex(record, addRemoveOffset, moveOffsets);
       const currentIndex = record.currentIndex;
 
       // consume the item, and adjust the addRemoveOffset and update moveDistance if necessary
       if (record === nextRemove) {
+        // this is removed item
         addRemoveOffset--;
         nextRemove = nextRemove._nextRemoved;
       } else {
         nextIt = nextIt !._next;
         if (record.previousIndex == null) {
+          // this is added item
           addRemoveOffset++;
         } else {
           // INVARIANT:  currentIndex < previousIndex
@@ -88,6 +91,8 @@ export class DefaultIterableDiffer<V> implements IterableDiffer<V>, IterableChan
           const localMovePreviousIndex = adjPreviousIndex - addRemoveOffset;
           const localCurrentIndex = currentIndex ! - addRemoveOffset;
           if (localMovePreviousIndex != localCurrentIndex) {
+            // the currentIndex is not expect (adjPreviousIndex !== currentIndex)
+            // so this item has been moved to currentIndex
             for (let i = 0; i < localMovePreviousIndex; i++) {
               const offset = i < moveOffsets.length ? moveOffsets[i] : (moveOffsets[i] = 0);
               const index = offset + i;
@@ -176,6 +181,7 @@ export class DefaultIterableDiffer<V> implements IterableDiffer<V>, IterableChan
           record = this._mismatch(record, item, itemTrackBy, index);
           mayBeDirty = true;
         } else {
+          // record is matched by _trackByFn
           if (mayBeDirty) {
             // TODO(misko): can we limit this to duplicates only?
             record = this._verifyReinsertion(record, item, itemTrackBy, index);
@@ -429,6 +435,7 @@ export class DefaultIterableDiffer<V> implements IterableDiffer<V>, IterableChan
       // assert(record._nextAdded === null);
       this._additionsTail = this._additionsTail._nextAdded = record;
     }
+    // don't set record._nextAdded，will set it in next _addAfter or _truncate call
     return record;
   }
 

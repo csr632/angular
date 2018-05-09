@@ -141,6 +141,7 @@ export function dispatchEvent(
 export function declaredViewContainer(view: ViewData): ElementData|null {
   if (view.parent) {
     const parentView = view.parent;
+    // view.parentNodeDef is the ng-template that declear this template
     return asElementData(parentView, view.parentNodeDef !.nodeIndex);
   }
   return null;
@@ -237,12 +238,15 @@ export function getParentRenderElement(view: ViewData, renderHost: any, def: Nod
       return asElementData(view, def.renderParent !.nodeIndex).renderElement;
     }
   } else {
+    // if there is no renderParent, then this is the RenderRootNode of view
+    // so ParentRenderElement is renderHost(the host element of component)
     return renderHost;
   }
 }
 
 const DEFINITION_CACHE = new WeakMap<any, Definition<any>>();
 
+// make sure only call DefinitionFactory once
 export function resolveDefinition<D extends Definition<any>>(factory: DefinitionFactory<D>): D {
   let value = DEFINITION_CACHE.get(factory) !as D;
   if (!value) {
